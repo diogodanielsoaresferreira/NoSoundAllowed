@@ -8,10 +8,7 @@ Using the Thunderboard Sense 2 Silicon Labs (https://www.silabs.com/products/dev
 
 The backend saves the sensor values history and shows them in a dashboard.
 
-Diogo Ferreira
-
-Filipe Pires
-
-Gonçalo Moreira
-
-Patrícia Rodrigues
+Diogo Ferreira    
+Filipe Pires   
+Gonçalo Moreira   
+Patrícia Rodrigues  
