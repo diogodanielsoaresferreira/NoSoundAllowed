@@ -1,0 +1,361 @@
+{% extends 'adminlte/index.html' %}
+
+{% block title %}
+No Sound Aloud
+{% endblock %}
+
+{% block content_header %}
+	
+	<title>Main dashboard</title>
+	<section class="content-header">
+			<h1>
+					Dashboard
+					<small>General information</small>
+			</h1>
+			<ol class="breadcrumb">
+				<li class="active"><a href="#"><i class="fa fa-dashboard"></i> Dashboard</a></li>
+			</ol>
+	</section>
+{% endblock %}
+
+{% block content %}
+	
+	{% for sensor, value in sensors.items %}
+
+	{% ifequal forloop.counter 1 %}
+		<div class="row">
+	{% endifequal %}
+
+	
+		<div class="col-md-4">
+			<div class="panel panel-default">
+				<div class="panel-heading filterheader">
+					<b>Sensor {{ sensor }}</b>
+				</div>
+				<div class="panel-body">
+					<!-- the events -->
+					<div class="row">
+						<div class="col-md-6">
+							<b><p style="text-align: left; font-size: large; font: bold 24px Arial;" id="noise-value-{{ sensor }}"></p></b>
+								<canvas
+									class="circle-canvas"
+									id="circle-{{ sensor }}"
+									style="text-align: center;"
+									value=0>
+								</canvas>
+
+						</div>
+						<div class="col-md-6">
+							<div id="gauge-{{ sensor }}" class="temperature-gauges" class="200x160px"></div>
+						</div>
+					</div>
+				</div>
+				<!-- /.box-body --> 
+			</div>
+		</div>
+		{% if forloop.counter|divisibleby:3 %}
+		</div>
+		<div class="row">
+		{% endif %}
+	{% endfor %}
+</div>
+{% endblock %}
+
+
+{% block jspage %}
+	
+	<script src="//cdn.jsdelivr.net/raphael/2.1.2/raphael-min.js"></script>
+	<script src="//cdn.jsdelivr.net/justgage/1.0.1/justgage.min.js"></script>
+
+	<script type="text/javascript">
+		
+		var numberOfTablesPerRow = 8;
+		var dict = {};
+		
+		// Canvas class
+		function Canvas (el) {
+		  this.el = el
+		  this.ctx = el.getContext("2d")
+		  this.margin = margin
+		  this.circleDefaults = null
+		}
+
+		Canvas.prototype.setTitle = function (title) {
+		  this.title = title
+		  return this
+		}
+
+		Canvas.prototype.renderTitle = function (width, height) {
+		  
+		  return this
+		}
+
+		Canvas.prototype.setFillStyle = function (color) {
+		  this.ctx.fillStyle = color
+		  return this
+		}
+
+		Canvas.prototype.setWidth = function (width) {
+		  this.el.setAttribute("width", width)
+		  this.el.style.width = width
+		  return this
+		}
+
+		Canvas.prototype.setHeight = function (height) {
+		  this.el.setAttribute("height", height)
+		  this.el.style.height = height-10
+		  return this
+		}
+
+		Canvas.prototype.getWidth = function () {
+		  return this.el.width
+		}
+
+		Canvas.prototype.getHeight = function () {
+		  return this.el.height
+		}
+
+		Canvas.prototype.initCircle = function (options) {
+		  var minDimension =
+			  Math.min(this.getWidth(), this.getHeight())
+		  options.max = (minDimension / 2) - (this.margin * 2)
+		  
+		  this.circleDefaults = options
+		  this.circle = new Circle(options)
+		  this.renderCircle()
+		  //this.circleAction()
+		}
+
+		Canvas.prototype.resetCircle = function () {
+		  clearInterval(this.action)
+		  this.initCircle(this.circleDefaults)
+		}
+
+		Canvas.prototype.renderCircle = function () {
+		  this.ctx.clearRect(0, 0,
+			this.getWidth(), this.getHeight())
+		  this.ctx.beginPath()
+		  this.ctx.arc(
+			this.getWidth() / 2,
+			this.getHeight() / 2,
+			this.circle.getRadius(),
+			0,
+			2 * Math.PI,
+			false)
+		  this.ctx.fill()
+		  this.renderTitle(this.getWidth() / 2, this.getHeight() / 2)
+		}
+
+		Canvas.prototype.circleAction = function () {
+		  this.action = setInterval(function () {
+			if (this.circle.getRadius() > 0.1 &&
+				this.circle.getRadius() <= this.circle.max
+			   ) {
+			  this.circle.circleAction()
+			  this.renderCircle()
+			} else {
+			  clearInterval(this.action)
+			}
+		  }.bind(this), animationTime)
+		}
+
+		// Circle class
+		function Circle (options) {
+		  this.action = options.action
+		  this.by = options.by
+		  this.type = options.type
+		  this.radius = options.radius || options.max
+		  this.max = options.max
+		  this.area = Math.PI * this.radius * this.radius
+		}
+
+		Circle.prototype.setRadius = function (radius) {
+		  this.radius = radius
+		  return this
+		}
+
+		Circle.prototype.getRadius = function () {
+		  return this.radius
+		}
+
+		Circle.prototype.calculateRadius = function () {
+		  return Math.sqrt(this.area / Math.PI)
+		}
+
+		Circle.prototype.circleAction = function () {
+		  if (this.type === "absolute") {
+			if (this.action === "shrink")
+				this.area -= this.by
+			  
+			if (this.action === "grow")
+				this.area += this.by
+		  }
+			
+		  if (this.type === "relative") {
+			if (this.action === "shrink")
+				this.area -= (this.area * this.by / 100)
+			  
+			if (this.action === "grow")
+				this.area += (this.area * this.by / 100)
+		  }
+			
+		  this.setRadius(this.calculateRadius())
+		}
+
+		var margin = 10
+		var panelWidth = window.innerWidth / numberOfTablesPerRow - margin
+		var panelHeight = window.innerHeight / 3 - margin
+		var animationTime = 100
+
+		var resetButton = document.getElementById("reset")
+
+		noise_canvas = {}
+
+		function createCanvas(this_canvas, value, sensor_id){
+			// Instances
+			noise_canvas[sensor_id] = new Canvas(this_canvas);
+			dict.sensor_id = noise_canvas[sensor_id];
+
+			updateCanvas(sensor_id, value)
+		}
+
+		function updateCanvas(sensor_id, value){
+
+			red = 0
+			green = 255
+
+			if(value=="[]")
+				value = 0;
+
+			if(value<40)
+				bubble_size = 0;
+
+			else if(value>80)
+				bubble_size = 40;
+
+			else
+				bubble_size = value-40;
+
+			if(value<40){
+				green = 255;
+				red = 0;
+			}
+			
+			else if(value>80){
+				red = 255;
+				green = 0;
+			}
+
+			else if(value<60){
+				green = 255
+				red = 255 - (255/20)*(60-value);
+			}
+
+			else{
+				red = 255;
+				green = 255 - (255/20)*(value-60);
+			}
+
+
+			if(red<0){
+				red = 0;
+				green = 255;
+			}
+
+			if (green<0){
+				green = 0;
+				red = 255;
+			}
+
+			red_rgb = Math.round(red).toString(16).toUpperCase();
+			green_rgb = Math.round(green).toString(16).toUpperCase();
+
+			color = "#" + "0".repeat(2-red_rgb.length)+red_rgb + "0".repeat(2-green_rgb.length) + green_rgb + "00";
+			
+			noise_canvas[sensor_id]
+				.setWidth(panelWidth - 120 + bubble_size*3)
+				.setHeight(panelHeight - 120 + bubble_size*3)
+				.setFillStyle(color)
+				.setTitle(value + " dB")
+				.initCircle({
+					action: "shrink",
+					by: 1,
+					type: "absolute"
+				})
+		}
+
+		circles = document.getElementsByClassName("circle-canvas");
+
+
+		for (var i = circles.length - 1, item; item = circles[i]; i--) {
+  			createCanvas(item, item.getAttribute("value"), item.getAttribute("id").slice(7));
+		}
+
+
+	    var chatSocket = new WebSocket('ws://' + window.location.host + '/ws/get/');
+	    var opened = false;
+
+	    chatSocket.onmessage = function(e) {
+	        var data = JSON.parse(e.data);
+	        
+	        var sensor_id = data['id'];
+	        var type = data['type'];
+	        var value = data['value'];
+
+
+	        if(type == "NO"){
+	        	noiseCircle = document.getElementById("circle-"+sensor_id);
+	        	document.getElementById("noise-value-"+sensor_id).innerHTML = value +" dB";
+	        	updateCanvas(sensor_id, value);
+	        }
+	        else if(type == "TE"){
+        		updateTemperature(sensor_id, value);
+	        }
+
+	    };
+
+	    chatSocket.onclose = function(e) {
+	        console.error('Chat socket closed unexpectedly');
+	        console.error(e);
+	    };
+
+	    // For testing purposes
+	    chatSocket.onopen = function(e) {
+	    	console.log("Opened websocket!");
+	    	opened = true;
+	    };
+
+	    function getData (){
+			chatSocket.send(JSON.stringify({
+			
+			}));
+			setTimeout(getData, 1000);
+	    }
+
+	    setTimeout(getData, 1000);
+
+
+		function updateTemperature(sensor, temperature) {
+            gauges_objects[sensor].refresh(temperature);
+        }
+        
+        gauges_objects = {}
+
+        var gauges = document.getElementsByClassName('temperature-gauges');
+        for (var i = gauges.length - 1, item; item = gauges[i]; i--) {
+  			gauges_objects[gauges[i].getAttribute("id").slice(6)] = new JustGage({
+	            id: "gauge-"+gauges[i].getAttribute("id").slice(6),
+	            value: 0,
+	            min: 0,
+	            max: 40,
+	            title: "Temperature (ºC)"
+	        });
+		}
+
+
+	</script>
+
+	
+
+{% endblock %}
+

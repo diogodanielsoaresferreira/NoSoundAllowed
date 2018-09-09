@@ -1,0 +1,268 @@
+{% extends 'adminlte/index.html' %}
+
+{% block title %}
+No Sound Aloud
+{% endblock %}
+
+{% block content_header %}
+	
+	<title>Main dashboard</title>
+	<section class="content-header">
+        	<h1>
+                	History
+                	<small>General information</small>
+            </h1>
+            <ol class="breadcrumb">
+        		<li class="active"><a href="#"><i class="fa fa-dashboard"></i> History</a></li>
+      		</ol>
+	</section>
+{% endblock %}
+
+{% block content %}
+
+	<div class="row">
+		<div class="col-md-12">
+			<div class="panel panel-default">
+				<div class="panel-heading filterheader">
+					<b></b>
+				</div>
+				<div class="panel-body">
+				<!-- the events -->
+					<div id="chart1">
+						<div id="container" style="width:100%; height:400px;"></div>
+							
+					</div>
+				</div>
+				<!-- /.box-body --> 
+			</div>
+		</div>
+	</div>
+
+	<div class="row">
+		<div class="col-md-12">
+			<div class="panel panel-default">
+				<div class="panel-heading filterheader">
+					<b></b>
+				</div>
+				<div class="panel-body">
+				<!-- the events -->
+					<div id="chart2">
+						<div id="container2" style="min-width: 310px; height: 400px; margin: 0 auto"></div>
+							
+					</div>
+				</div>
+				<!-- /.box-body --> 
+			</div>
+		</div>
+	</div>
+
+{% endblock %}
+
+{% block jspage %}
+
+	<script src="https://code.highcharts.com/highcharts.js"></script>
+	<script src="https://code.highcharts.com/modules/exporting.js"></script>
+	
+	<script type="text/javascript">
+
+		var chartNoise;
+		var chartTemp;
+
+		temperature_values = JSON.parse('{{temperature|escapejs}}')
+
+		temp_series = []
+
+		for (var sensor in temperature_values){
+
+			s_data = []
+			for(j=0; j<temperature_values[sensor].length; j++){
+
+				timestamp = Date.UTC(temperature_values[sensor][j][0][0], temperature_values[sensor][j][0][1], temperature_values[sensor][j][0][2], temperature_values[sensor][j][0][3]+1, temperature_values[sensor][j][0][4], temperature_values[sensor][j][0][5]);
+				value = temperature_values[sensor][j][1];
+				
+				s_data.push([timestamp, value]);
+			}
+
+			// Add the data to the series
+			if (s_data.length > 0){
+				temp_series.push({name:sensor, data:s_data, visible:true});
+			}
+
+		}
+
+		noise_values = JSON.parse('{{noise|escapejs}}')
+
+		noise_series = []
+
+		for (var sensor in noise_values){
+
+			s_data = []
+			for(j=0; j<noise_values[sensor].length; j++){
+
+				timestamp = Date.UTC(noise_values[sensor][j][0][0], noise_values[sensor][j][0][1], noise_values[sensor][j][0][2], noise_values[sensor][j][0][3]+1, noise_values[sensor][j][0][4], noise_values[sensor][j][0][5]);
+				value = noise_values[sensor][j][1];
+				
+				s_data.push([timestamp, value]);
+			}
+
+			// Add the data to the series
+			if (s_data.length > 0){
+				noise_series.push({name:sensor, data:s_data, visible:true});
+			}
+
+		}
+
+
+		chartNoise = Highcharts.chart('container', {
+		    chart: {
+		        zoomType: 'x'
+		    },
+		    title: {
+		        text: 'Noise levels'
+		    },
+		    subtitle: {
+		        text: ''
+		    },
+		    xAxis: {
+		        type: 'datetime',
+		        title: {
+		            text: 'Date'
+		        }
+		    },
+		    yAxis: {
+		        title: {
+		            text: 'Noise (dB)',
+		            textAlign: 'left'
+		        },
+		        min: 0
+		    },
+		    tooltip: {
+		        headerFormat: '{point.x:%e. %b}',
+		        pointFormat: '<span style="color:{series.color}"><b>{series.name}</b></span>: {point.y:.2f} dB',
+		        split: true
+		    },
+
+		    plotOptions: {
+		        spline: {
+		            marker: {
+		                enabled: true
+		            }
+		        }
+		    },
+
+		    rangeSelector: {
+	            selected: 1
+	        },
+
+		    series: noise_series
+		});
+
+		chartTemp = Highcharts.chart('container2', {
+		    chart: {
+		        zoomType: 'x'
+		    },
+		    title: {
+		        text: 'Temperature'
+		    },
+		    subtitle: {
+		        text: ''
+		    },
+		    xAxis: {
+		        type: 'datetime',
+		        title: {
+		            text: 'Date'
+		        }
+		    },
+		    yAxis: {
+		        title: {
+		            text: 'Temperature (ºC)',
+		            textAlign: 'left'
+		        },
+		        min: 0
+		    },
+		    tooltip: {
+		        headerFormat: '{point.x:%e. %b}',
+		        pointFormat: '<span style="color:{series.color}"><b>{series.name}</b></span>: {point.y:.2f} ºC',
+		        split: true
+		    },
+
+		    plotOptions: {
+		        spline: {
+		            marker: {
+		                enabled: true
+		            }
+		        }
+		    },
+
+		    rangeSelector: {
+	            selected: 1
+	        },
+
+		    series: temp_series
+		});
+
+		function checkIfExists(arr, element){
+	    	for (var i = 0; i < arr.length; i++) {
+		        if (arr[i][0] === element) {
+		            return true;
+		        }
+		    }
+		    return false;
+	    }
+
+		var chatSocket = new WebSocket('ws://' + window.location.host + '/ws/get/');
+		var opened = false;
+
+		chatSocket.onmessage = function(e) {
+		    var data = JSON.parse(e.data);
+		        
+		    var sensor_id = data['id'];
+		    var type = data['type'];
+		    var value = data['value'];
+		    var timestamp = Date.UTC(data['timestamp'][0], data['timestamp'][1], data['timestamp'][2], data['timestamp'][3]+1, data['timestamp'][4], data['timestamp'][5]);
+
+
+	        if(type == "NO"){
+
+	        	for(var j=0; j<chartNoise.series.length; j++){
+		        	if(chartNoise.series[j].name.toString()==sensor_id)
+		        		if (chartNoise.series[j].xData.indexOf(timestamp)==-1)
+		        			chartNoise.series[j].addPoint([timestamp, value], true, true);
+		        }
+	        }
+	        else if(type == "TE"){
+	        	for(var j=0; j<chartTemp.series.length; j++){
+		        	if(chartTemp.series[j].name.toString()==sensor_id)
+		        		if (chartTemp.series[j].xData.indexOf(timestamp)==-1)
+		        			chartTemp.series[j].addPoint([timestamp, value], true, true);
+		        }
+	        }
+
+	    };
+
+	    chatSocket.onclose = function(e) {
+	        console.error('Chat socket closed unexpectedly');
+	        console.error(e);
+	    };
+
+	    // For testing purposes
+	    chatSocket.onopen = function(e) {
+	    	console.log("Opened websocket!");
+	    	opened = true;
+	    };
+
+	    function getData (){
+			chatSocket.send(JSON.stringify({
+			
+			}));
+			
+			setTimeout(getData, 1000);
+	    }
+
+	    setTimeout(getData, 1000);
+
+	    
+
+	
+	</script>
+{% endblock %}
